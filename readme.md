@@ -2,13 +2,6 @@
 
 Video frame'leri üzerinde nokta seçerek hız ve mesafe hesaplamaları yapan modern bir masaüstü uygulaması.
 
-## Kurulum
-
-```bash
-pip install -r requirements.txt
-python main.py
-```
-
 ## Kullanım
 
 ### 1. Video Yükleme
