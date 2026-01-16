@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QLabel, QSlider, QFileDialog, QGroupBox,
-                             QStatusBar, QMessageBox, QDoubleSpinBox, QTextEdit,
-                             QListWidget, QListWidgetItem)
+                             QStatusBar, QMessageBox, QTextEdit,
+                             QListWidget, QListWidgetItem, QSizePolicy)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QImage, QPixmap, QPainter, QPen, QColor, QScreen
 import cv2
@@ -20,6 +20,8 @@ class MainWindow(QMainWindow):
         self.selecting_point = False
         self.video_loaded = False
         self.display_scale = 1.0
+        self.video_display_width = 0
+        self.video_display_height = 0
         
         self.setWindowTitle("Frame Analiz Uygulaması")
         self.setMinimumSize(1900, 1300)
@@ -44,6 +46,7 @@ class MainWindow(QMainWindow):
         self.video_label = QLabel()
         self.video_label.setObjectName("videoLabel")
         self.video_label.setMinimumSize(800, 600)
+        self.video_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setText("Video yüklemek için 'Video Yükle' butonuna tıklayın")
         self.video_label.setStyleSheet(f"""
@@ -55,6 +58,8 @@ class MainWindow(QMainWindow):
         """)
         self.video_label.mousePressEvent = self.video_label_clicked
         self.video_label.setScaledContents(False)
+        self.video_display_width = 800
+        self.video_display_height = 600
         left_layout.addWidget(self.video_label)
         
         slider_layout = QHBoxLayout()
@@ -70,10 +75,14 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(left_layout, 75)
         
         right_layout = QVBoxLayout()
+        right_layout.setSpacing(15)
+        right_layout.setContentsMargins(5, 5, 5, 5)
         
         video_group = QGroupBox("Video İşlemleri")
-        video_group.setMaximumHeight(150)
+        video_group.setMinimumHeight(160)
+        video_group.setMaximumHeight(200)
         video_group_layout = QVBoxLayout()
+        video_group_layout.setSpacing(10)
         
         self.load_video_btn = QPushButton("Video Yükle")
         self.load_video_btn.clicked.connect(self.load_video)
@@ -81,42 +90,19 @@ class MainWindow(QMainWindow):
         
         self.video_info_label = QLabel("Video bilgisi yok")
         self.video_info_label.setWordWrap(True)
+        self.video_info_label.setMinimumHeight(80)
+        self.video_info_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         video_group_layout.addWidget(self.video_info_label)
         
         video_group.setLayout(video_group_layout)
         right_layout.addWidget(video_group)
         
-        settings_group = QGroupBox("Ölçüm Ayarları")
-        settings_group.setMaximumHeight(150)
-        settings_layout = QVBoxLayout()
-        
-        ratio_layout = QHBoxLayout()
-        ratio_layout.addWidget(QLabel("Pixel:"))
-        self.pixel_input = QDoubleSpinBox()
-        self.pixel_input.setRange(1, 10000)
-        self.pixel_input.setValue(546)
-        self.pixel_input.setDecimals(2)
-        ratio_layout.addWidget(self.pixel_input)
-        settings_layout.addLayout(ratio_layout)
-        
-        um_layout = QHBoxLayout()
-        um_layout.addWidget(QLabel("µm:"))
-        self.um_input = QDoubleSpinBox()
-        self.um_input.setRange(1, 100000)
-        self.um_input.setValue(1000)
-        self.um_input.setDecimals(2)
-        um_layout.addWidget(self.um_input)
-        settings_layout.addLayout(um_layout)
-        
-        ratio_info = QLabel("546 pixel = 1000 µm")
-        ratio_info.setStyleSheet("color: #666; font-size: 12px; font-style: italic;")
-        settings_layout.addWidget(ratio_info)
-        
-        settings_group.setLayout(settings_layout)
-        right_layout.addWidget(settings_group)
+        self.pixel_value = 546
+        self.um_value = 1000
         
         points_group = QGroupBox("Nokta Seçimi")
         points_layout = QVBoxLayout()
+        points_layout.setSpacing(10)
         
         self.select_point_btn = QPushButton("Nokta Seç")
         self.select_point_btn.setEnabled(False)
@@ -145,6 +131,7 @@ class MainWindow(QMainWindow):
         
         calc_group = QGroupBox("Hesaplama")
         calc_layout = QVBoxLayout()
+        calc_layout.setSpacing(10)
         
         self.calculate_btn = QPushButton("Hesapla")
         self.calculate_btn.setEnabled(False)
@@ -187,8 +174,8 @@ class MainWindow(QMainWindow):
                     self.video_loaded = True
                     info = self.video_processor.get_video_info()
                     
-                    pixels = self.pixel_input.value()
-                    um = self.um_input.value()
+                    pixels = self.pixel_value
+                    um = self.um_value
                     self.calculator = SpeedCalculator(info['fps'], um / pixels)
                     
                     self.video_info_label.setText(
@@ -204,6 +191,9 @@ class MainWindow(QMainWindow):
                     self.select_point_btn.setEnabled(True)
                     
                     self.clear_all_points()
+                    
+                    self.video_display_width = self.video_label.width()
+                    self.video_display_height = self.video_label.height()
                     
                     self.display_frame()
                     self.status_bar.showMessage(f"Video yüklendi: {Path(file_path).name}")
@@ -231,17 +221,13 @@ class MainWindow(QMainWindow):
             
             pixmap = QPixmap.fromImage(qt_image)
             
-            available_width = self.video_label.width()
-            available_height = self.video_label.height()
-            
-            if available_width > 100 and available_height > 100:
-                scaled_pixmap = pixmap.scaled(
-                    available_width, available_height,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
-                )
-                self.display_scale = scaled_pixmap.width() / w
-                self.video_label.setPixmap(scaled_pixmap)
+            scaled_pixmap = pixmap.scaled(
+                self.video_display_width, self.video_display_height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            self.display_scale = scaled_pixmap.width() / w
+            self.video_label.setPixmap(scaled_pixmap)
     
     def draw_points_on_frame(self, frame):
         if not self.calculator:
@@ -355,8 +341,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Uyarı", "En az 2 nokta seçmelisiniz!")
             return
         
-        pixels = self.pixel_input.value()
-        um = self.um_input.value()
+        pixels = self.pixel_value
+        um = self.um_value
         self.calculator.set_pixel_ratio(pixels, um)
         
         summary = self.calculator.get_summary_text()
@@ -390,10 +376,24 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Hata", f"Kayıt hatası: {str(e)}")
     
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.video_display_width = self.video_label.width()
+        self.video_display_height = self.video_label.height()
+    
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if self.video_loaded and self.video_processor.get_current_frame() is not None:
-            self.display_frame()
+        
+        new_width = self.video_label.width()
+        new_height = self.video_label.height()
+        
+        if new_width > 100 and new_height > 100:
+            if new_width != self.video_display_width or new_height != self.video_display_height:
+                self.video_display_width = new_width
+                self.video_display_height = new_height
+                
+                if self.video_loaded and self.video_processor.get_current_frame() is not None:
+                    self.display_frame()
     
     def keyPressEvent(self, event):
         key = event.key()

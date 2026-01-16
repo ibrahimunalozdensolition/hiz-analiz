@@ -15,25 +15,22 @@ python main.py
 - "Video Yükle" butonuna tıklayın
 - Video dosyanızı seçin (MP4, AVI, MOV, MKV)
 
-### 2. Ölçüm Ayarları
-- **Pixel Oranı:** Kameranızın pixel/mikrometre oranını girin
-- Varsayılan: 546 pixel = 1000 µm
-
-### 3. Nokta Seçimi
+### 2. Nokta Seçimi
 - Ok tuşları (←→) ile frame'ler arasında gezinin
 - "Nokta Seç" butonuna tıklayın
 - Video üzerinde bir noktaya tıklayın
 - İstediğiniz kadar nokta seçebilirsiniz (minimum 2)
 
-### 4. Hesaplama
+### 3. Hesaplama
 - "Hesapla" butonuna tıklayın
 - Ardışık noktalar arası:
   - Mesafe (pixel, µm, mm)
   - Zaman (saniye)
   - Hız (µm/s, mm/s)
 - Genel ortalama ve toplam değerler gösterilir
+- Pixel oranı: 546 pixel = 1000 µm (sabit)
 
-### 5. Sonuçları Kaydetme
+### 4. Sonuçları Kaydetme
 - "Sonuçları CSV Olarak Kaydet" butonuna tıklayın
 - Tüm hesaplamalar CSV formatında kaydedilir
 
@@ -71,10 +68,9 @@ python main.py
 ## Örnek Kullanım
 
 1. Video yükle (30 FPS)
-2. Pixel oranı: 546 pixel = 1000 µm
-3. Frame 5'te bir nokta seç
-4. Frame 35'te bir nokta seç
-5. Hesapla
+2. Frame 5'te bir nokta seç
+3. Frame 35'te bir nokta seç
+4. Hesapla
 
 **Sonuç:**
 - Frame farkı: 30 frame

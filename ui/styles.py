@@ -21,7 +21,8 @@ class AppStyles:
                 background-color: {AppStyles.BG_WHITE};
                 color: {AppStyles.TEXT_DARK_GRAY};
                 font-family: "Segoe UI", Arial, sans-serif;
-                font-size: 14px;
+                font-size: 15px;
+                font-weight: bold;
             }}
             
             QPushButton {{
@@ -31,7 +32,7 @@ class AppStyles:
                 padding: 10px 20px;
                 border-radius: 6px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 15px;
                 min-height: 35px;
             }}
             
@@ -51,10 +52,11 @@ class AppStyles:
             QLabel {{
                 color: {AppStyles.TEXT_DARK_GRAY};
                 background-color: transparent;
+                font-weight: bold;
             }}
             
             QLabel#title {{
-                font-size: 18px;
+                font-size: 20px;
                 font-weight: bold;
                 color: {AppStyles.TEXT_BLACK};
                 padding: 10px;
@@ -64,6 +66,8 @@ class AppStyles:
                 background-color: {AppStyles.TEXT_BLACK};
                 border: 2px solid {AppStyles.BORDER_LIGHT_GRAY};
                 border-radius: 8px;
+                font-size: 18px;
+                font-weight: bold;
             }}
             
             QGroupBox {{
@@ -71,15 +75,18 @@ class AppStyles:
                 border: 2px solid {AppStyles.BORDER_LIGHT_GRAY};
                 border-radius: 8px;
                 margin-top: 15px;
-                padding-top: 15px;
+                padding: 20px 10px 10px 10px;
+                font-size: 16px;
                 font-weight: bold;
                 color: {AppStyles.TEXT_BLACK};
             }}
             
             QGroupBox::title {{
                 subcontrol-origin: margin;
+                subcontrol-position: top left;
                 left: 10px;
-                padding: 0 5px;
+                top: 5px;
+                padding: 0 8px;
             }}
             
             QLineEdit, QSpinBox, QDoubleSpinBox {{
@@ -88,7 +95,8 @@ class AppStyles:
                 padding: 8px;
                 background-color: {AppStyles.BG_WHITE};
                 color: {AppStyles.TEXT_BLACK};
-                font-size: 14px;
+                font-size: 15px;
+                font-weight: bold;
             }}
             
             QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
@@ -119,6 +127,8 @@ class AppStyles:
                 background-color: {AppStyles.BG_WHITE};
                 color: {AppStyles.TEXT_DARK_GRAY};
                 border-top: 1px solid {AppStyles.BORDER_LIGHT_GRAY};
+                font-size: 14px;
+                font-weight: bold;
             }}
             
             QTextEdit {{
@@ -128,6 +138,27 @@ class AppStyles:
                 background-color: {AppStyles.BG_WHITE};
                 color: {AppStyles.TEXT_DARK_GRAY};
                 font-family: "Consolas", "Courier New", monospace;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            
+            QListWidget {{
+                border: 2px solid {AppStyles.BORDER_LIGHT_GRAY};
+                border-radius: 6px;
+                background-color: {AppStyles.BG_WHITE};
+                color: {AppStyles.TEXT_DARK_GRAY};
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            
+            QListWidget::item {{
+                padding: 5px;
+                font-weight: bold;
+            }}
+            
+            QListWidget::item:selected {{
+                background-color: {AppStyles.ACCENT_NAVY};
+                color: white;
             }}
             
             QScrollBar:vertical {{
