@@ -24,7 +24,12 @@ class MainWindow(QMainWindow):
         self.video_display_height = 0
         
         self.setWindowTitle("Frame Analiz Uygulaması")
-        self.setMinimumSize(1900, 1300)
+        
+        screen = self.screen()
+        screen_geometry = screen.availableGeometry()
+        min_width = int(screen_geometry.width() * 0.7)
+        min_height = int(screen_geometry.height() * 0.6)
+        self.setMinimumSize(min_width, min_height)
         
         self.init_ui()
         self.setStyleSheet(AppStyles.get_stylesheet())
@@ -45,7 +50,13 @@ class MainWindow(QMainWindow):
         
         self.video_label = QLabel()
         self.video_label.setObjectName("videoLabel")
-        self.video_label.setMinimumSize(800, 600)
+        
+        screen = self.screen()
+        screen_geometry = screen.availableGeometry()
+        video_min_width = int(screen_geometry.width() * 0.4)
+        video_min_height = int(screen_geometry.height() * 0.4)
+        self.video_label.setMinimumSize(video_min_width, video_min_height)
+        
         self.video_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setText("Video yüklemek için 'Video Yükle' butonuna tıklayın")
@@ -58,8 +69,8 @@ class MainWindow(QMainWindow):
         """)
         self.video_label.mousePressEvent = self.video_label_clicked
         self.video_label.setScaledContents(False)
-        self.video_display_width = 800
-        self.video_display_height = 600
+        self.video_display_width = video_min_width
+        self.video_display_height = video_min_height
         left_layout.addWidget(self.video_label)
         
         slider_layout = QHBoxLayout()

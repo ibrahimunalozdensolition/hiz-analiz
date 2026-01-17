@@ -86,6 +86,17 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Masaüstü Uygulaması Olarak Paketleme (macOS)
+
+Uygulamayı bağımsız bir .app dosyası olarak paketlemek için:
+
+```bash
+source venv/bin/activate
+pyinstaller --name="Hiz Analiz" --windowed --onefile --clean main.py
+```
+
+Paketleme tamamlandıktan sonra `dist/` klasöründe `Hiz Analiz.app` dosyası oluşacaktır. Bu dosyayı çift tıklayarak uygulamayı başlatabilirsiniz.
+
 ## Örnek Kullanım
 
 1. Video yükle (30 FPS)
