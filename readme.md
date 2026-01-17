@@ -58,6 +58,34 @@ Video frame'leri üzerinde nokta seçerek hız ve mesafe hesaplamaları yapan mo
 - OpenCV
 - NumPy
 
+## Kurulum ve Çalıştırma
+
+### 1. Projeyi İndirin
+
+```bash
+git clone https://github.com/ibrahimunalozdensolition/hiz-analiz.git
+cd hiz-analiz
+```
+
+### 2. Sanal Ortam Oluşturun
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Gerekli Paketleri Yükleyin
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Uygulamayı Çalıştırın
+
+```bash
+python main.py
+```
+
 ## Örnek Kullanım
 
 1. Video yükle (30 FPS)
