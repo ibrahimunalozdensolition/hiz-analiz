@@ -22,8 +22,14 @@ class MainWindow(QMainWindow):
         self.display_scale = 1.0
         self.video_display_width = 0
         self.video_display_height = 0
+        self.zoom_level = 1.0
+        self.zoom_offset_x = 0
+        self.zoom_offset_y = 0
+        self.panning = False
+        self.pan_start_x = 0
+        self.pan_start_y = 0
         
-        self.setWindowTitle("Frame Analiz Uygulaması")
+        self.setWindowTitle("Erytroscope")
         
         screen = self.screen()
         screen_geometry = screen.availableGeometry()
@@ -44,7 +50,7 @@ class MainWindow(QMainWindow):
         
         left_layout = QVBoxLayout()
         
-        title_label = QLabel("Video Görüntüsü")
+        title_label = QLabel("Video Display")
         title_label.setObjectName("title")
         left_layout.addWidget(title_label)
         
@@ -59,7 +65,7 @@ class MainWindow(QMainWindow):
         
         self.video_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.video_label.setText("Video yüklemek için 'Video Yükle' butonuna tıklayın")
+        self.video_label.setText("Click 'Load Video' button to load a video")
         self.video_label.setStyleSheet(f"""
             QLabel {{
                 background-color: {AppStyles.TEXT_BLACK};
@@ -67,7 +73,9 @@ class MainWindow(QMainWindow):
                 font-size: 16px;
             }}
         """)
-        self.video_label.mousePressEvent = self.video_label_clicked
+        self.video_label.mousePressEvent = self.video_label_mouse_press
+        self.video_label.mouseMoveEvent = self.video_label_mouse_move
+        self.video_label.mouseReleaseEvent = self.video_label_mouse_release
         self.video_label.setScaledContents(False)
         self.video_display_width = video_min_width
         self.video_display_height = video_min_height
@@ -83,23 +91,44 @@ class MainWindow(QMainWindow):
         slider_layout.addWidget(self.frame_label)
         left_layout.addLayout(slider_layout)
         
+        zoom_layout = QHBoxLayout()
+        self.zoom_in_btn = QPushButton("Zoom In")
+        self.zoom_in_btn.setEnabled(False)
+        self.zoom_in_btn.clicked.connect(self.zoom_in)
+        zoom_layout.addWidget(self.zoom_in_btn)
+        
+        self.zoom_out_btn = QPushButton("Zoom Out")
+        self.zoom_out_btn.setEnabled(False)
+        self.zoom_out_btn.clicked.connect(self.zoom_out)
+        zoom_layout.addWidget(self.zoom_out_btn)
+        
+        self.zoom_reset_btn = QPushButton("Reset")
+        self.zoom_reset_btn.setEnabled(False)
+        self.zoom_reset_btn.clicked.connect(self.zoom_reset)
+        zoom_layout.addWidget(self.zoom_reset_btn)
+        
+        self.zoom_label = QLabel("Zoom: %100")
+        self.zoom_label.setContentsMargins(30, 0, 0, 0)
+        zoom_layout.addWidget(self.zoom_label)
+        left_layout.addLayout(zoom_layout)
+        
         main_layout.addLayout(left_layout, 75)
         
         right_layout = QVBoxLayout()
         right_layout.setSpacing(15)
         right_layout.setContentsMargins(5, 5, 5, 5)
         
-        video_group = QGroupBox("Video İşlemleri")
+        video_group = QGroupBox("Video Operations")
         video_group.setMinimumHeight(160)
         video_group.setMaximumHeight(200)
         video_group_layout = QVBoxLayout()
         video_group_layout.setSpacing(10)
         
-        self.load_video_btn = QPushButton("Video Yükle")
+        self.load_video_btn = QPushButton("Load Video")
         self.load_video_btn.clicked.connect(self.load_video)
         video_group_layout.addWidget(self.load_video_btn)
         
-        self.video_info_label = QLabel("Video bilgisi yok")
+        self.video_info_label = QLabel("No video information")
         self.video_info_label.setWordWrap(True)
         self.video_info_label.setMinimumHeight(80)
         self.video_info_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
@@ -111,11 +140,11 @@ class MainWindow(QMainWindow):
         self.pixel_value = 546
         self.um_value = 1000
         
-        points_group = QGroupBox("Nokta Seçimi")
+        points_group = QGroupBox("Point Selection")
         points_layout = QVBoxLayout()
         points_layout.setSpacing(10)
         
-        self.select_point_btn = QPushButton("Nokta Seç")
+        self.select_point_btn = QPushButton("Select Point")
         self.select_point_btn.setEnabled(False)
         self.select_point_btn.clicked.connect(self.start_point_selection)
         points_layout.addWidget(self.select_point_btn)
@@ -126,12 +155,12 @@ class MainWindow(QMainWindow):
         points_layout.addWidget(self.points_list)
         
         points_buttons_layout = QHBoxLayout()
-        self.clear_last_btn = QPushButton("Son Noktayı Sil")
+        self.clear_last_btn = QPushButton("Remove Last")
         self.clear_last_btn.setEnabled(False)
         self.clear_last_btn.clicked.connect(self.clear_last_point)
         points_buttons_layout.addWidget(self.clear_last_btn)
         
-        self.clear_all_btn = QPushButton("Tümünü Temizle")
+        self.clear_all_btn = QPushButton("Clear All")
         self.clear_all_btn.setEnabled(False)
         self.clear_all_btn.clicked.connect(self.clear_all_points)
         points_buttons_layout.addWidget(self.clear_all_btn)
@@ -140,11 +169,11 @@ class MainWindow(QMainWindow):
         points_group.setLayout(points_layout)
         right_layout.addWidget(points_group)
         
-        calc_group = QGroupBox("Hesaplama")
+        calc_group = QGroupBox("Calculation")
         calc_layout = QVBoxLayout()
         calc_layout.setSpacing(10)
         
-        self.calculate_btn = QPushButton("Hesapla")
+        self.calculate_btn = QPushButton("Calculate")
         self.calculate_btn.setEnabled(False)
         self.calculate_btn.clicked.connect(self.calculate_speeds)
         calc_layout.addWidget(self.calculate_btn)
@@ -152,10 +181,10 @@ class MainWindow(QMainWindow):
         self.results_text = QTextEdit()
         self.results_text.setReadOnly(True)
         self.results_text.setMinimumHeight(200)
-        self.results_text.setPlaceholderText("Sonuçlar burada görünecek...")
+        self.results_text.setPlaceholderText("Results will appear here...")
         calc_layout.addWidget(self.results_text)
         
-        self.export_btn = QPushButton("Sonuçları CSV Olarak Kaydet")
+        self.export_btn = QPushButton("Save Results as CSV")
         self.export_btn.setEnabled(False)
         self.export_btn.clicked.connect(self.export_results)
         calc_layout.addWidget(self.export_btn)
@@ -165,18 +194,22 @@ class MainWindow(QMainWindow):
         
         right_layout.addStretch()
         
+        self.about_btn = QPushButton("About")
+        self.about_btn.clicked.connect(self.show_about)
+        right_layout.addWidget(self.about_btn)
+        
         main_layout.addLayout(right_layout, 25)
         
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Hazır")
+        self.status_bar.showMessage("Ready")
         
     def load_video(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, 
-            "Video Seç", 
+            "Select Video", 
             "", 
-            "Video Dosyaları (*.mp4 *.avi *.mov *.mkv)"
+            "Video Files (*.mp4 *.avi *.mov *.mkv)"
         )
         
         if file_path:
@@ -191,27 +224,31 @@ class MainWindow(QMainWindow):
                     
                     self.video_info_label.setText(
                         f"FPS: {info['fps']}\n"
-                        f"Toplam Frame: {info['total_frames']}\n"
-                        f"Çözünürlük: {info['width']}x{info['height']}\n"
-                        f"Süre: {info['duration']:.2f} saniye"
+                        f"Total Frames: {info['total_frames']}\n"
+                        f"Resolution: {info['width']}x{info['height']}\n"
+                        f"Duration: {info['duration']:.2f} sec"
                     )
                     
                     self.frame_slider.setMaximum(info['total_frames'] - 1)
                     self.frame_slider.setValue(0)
                     self.frame_slider.setEnabled(True)
                     self.select_point_btn.setEnabled(True)
+                    self.zoom_in_btn.setEnabled(True)
+                    self.zoom_out_btn.setEnabled(True)
+                    self.zoom_reset_btn.setEnabled(True)
                     
                     self.clear_all_points()
+                    self.zoom_reset()
                     
                     self.video_display_width = self.video_label.width()
                     self.video_display_height = self.video_label.height()
                     
                     self.display_frame()
-                    self.status_bar.showMessage(f"Video yüklendi: {Path(file_path).name}")
+                    self.status_bar.showMessage(f"Video loaded: {Path(file_path).name}")
                 else:
-                    QMessageBox.critical(self, "Hata", "Video yüklenemedi!")
+                    QMessageBox.critical(self, "Error", "Failed to load video!")
             except Exception as e:
-                QMessageBox.critical(self, "Hata", f"Video yükleme hatası: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Video loading error: {str(e)}")
     
     def slider_changed(self, value):
         if self.video_loaded:
@@ -225,6 +262,24 @@ class MainWindow(QMainWindow):
             display_frame = frame.copy()
             display_frame = self.draw_points_on_frame(display_frame)
             
+            if self.zoom_level > 1.0:
+                h, w = display_frame.shape[:2]
+                crop_w = int(w / self.zoom_level)
+                crop_h = int(h / self.zoom_level)
+                
+                center_x = w // 2 + self.zoom_offset_x
+                center_y = h // 2 + self.zoom_offset_y
+                
+                x1 = max(0, center_x - crop_w // 2)
+                y1 = max(0, center_y - crop_h // 2)
+                x2 = min(w, x1 + crop_w)
+                y2 = min(h, y1 + crop_h)
+                
+                x1 = max(0, x2 - crop_w)
+                y1 = max(0, y2 - crop_h)
+                
+                display_frame = display_frame[y1:y2, x1:x2]
+            
             rgb_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
             h, w, ch = rgb_frame.shape
             bytes_per_line = ch * w
@@ -237,7 +292,12 @@ class MainWindow(QMainWindow):
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
             )
-            self.display_scale = scaled_pixmap.width() / w
+            
+            original_frame = self.video_processor.get_current_frame()
+            if original_frame is not None:
+                orig_h, orig_w = original_frame.shape[:2]
+                self.display_scale = scaled_pixmap.width() / orig_w * self.zoom_level
+            
             self.video_label.setPixmap(scaled_pixmap)
     
     def draw_points_on_frame(self, frame):
@@ -266,9 +326,51 @@ class MainWindow(QMainWindow):
     
     def start_point_selection(self):
         self.selecting_point = True
-        self.select_point_btn.setText("🎯 Videoda bir nokta tıklayın...")
+        self.select_point_btn.setText("Click a point on the video...")
         self.select_point_btn.setEnabled(False)
-        self.status_bar.showMessage("Video üzerinde bir nokta seçin")
+        self.status_bar.showMessage("Select a point on the video")
+    
+    def video_label_mouse_press(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.selecting_point:
+                self.video_label_clicked(event)
+            elif self.zoom_level > 1.0:
+                self.panning = True
+                self.pan_start_x = event.pos().x()
+                self.pan_start_y = event.pos().y()
+                self.video_label.setCursor(Qt.CursorShape.ClosedHandCursor)
+    
+    def video_label_mouse_move(self, event):
+        if self.panning and self.zoom_level > 1.0:
+            frame = self.video_processor.get_current_frame()
+            if frame is not None:
+                frame_height, frame_width = frame.shape[:2]
+                
+                dx = event.pos().x() - self.pan_start_x
+                dy = event.pos().y() - self.pan_start_y
+                
+                pan_sensitivity = 2
+                self.zoom_offset_x -= int(dx * pan_sensitivity / self.zoom_level)
+                self.zoom_offset_y -= int(dy * pan_sensitivity / self.zoom_level)
+                
+                max_offset_x = int(frame_width / 2 * (1 - 1/self.zoom_level))
+                max_offset_y = int(frame_height / 2 * (1 - 1/self.zoom_level))
+                
+                self.zoom_offset_x = max(-max_offset_x, min(max_offset_x, self.zoom_offset_x))
+                self.zoom_offset_y = max(-max_offset_y, min(max_offset_y, self.zoom_offset_y))
+                
+                self.pan_start_x = event.pos().x()
+                self.pan_start_y = event.pos().y()
+                
+                self.display_frame()
+    
+    def video_label_mouse_release(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.panning = False
+            if self.zoom_level > 1.0:
+                self.video_label.setCursor(Qt.CursorShape.OpenHandCursor)
+            else:
+                self.video_label.setCursor(Qt.CursorShape.ArrowCursor)
     
     def video_label_clicked(self, event):
         if not self.selecting_point or not self.video_loaded:
@@ -295,13 +397,31 @@ class MainWindow(QMainWindow):
             click_y = event.pos().y() - y_offset
             
             if 0 <= click_x < pixmap_width and 0 <= click_y < pixmap_height:
-                frame_x = int((click_x / pixmap_width) * frame_width)
-                frame_y = int((click_y / pixmap_height) * frame_height)
+                if self.zoom_level > 1.0:
+                    crop_w = int(frame_width / self.zoom_level)
+                    crop_h = int(frame_height / self.zoom_level)
+                    
+                    center_x = frame_width // 2 + self.zoom_offset_x
+                    center_y = frame_height // 2 + self.zoom_offset_y
+                    
+                    x1 = max(0, center_x - crop_w // 2)
+                    y1 = max(0, center_y - crop_h // 2)
+                    x2 = min(frame_width, x1 + crop_w)
+                    y2 = min(frame_height, y1 + crop_h)
+                    
+                    x1 = max(0, x2 - crop_w)
+                    y1 = max(0, y2 - crop_h)
+                    
+                    frame_x = int(x1 + (click_x / pixmap_width) * crop_w)
+                    frame_y = int(y1 + (click_y / pixmap_height) * crop_h)
+                else:
+                    frame_x = int((click_x / pixmap_width) * frame_width)
+                    frame_y = int((click_y / pixmap_height) * frame_height)
                 
                 current_frame = self.video_processor.current_frame_number
                 index = self.calculator.add_point(frame_x, frame_y, current_frame)
                 
-                item_text = f"Nokta {index + 1}: Frame {current_frame}, ({frame_x}, {frame_y})"
+                item_text = f"Point {index + 1}: Frame {current_frame}, ({frame_x}, {frame_y})"
                 self.points_list.addItem(item_text)
                 
                 self.clear_last_btn.setEnabled(True)
@@ -311,9 +431,9 @@ class MainWindow(QMainWindow):
                     self.calculate_btn.setEnabled(True)
                 
                 self.selecting_point = False
-                self.select_point_btn.setText("🎯 Nokta Seç")
+                self.select_point_btn.setText("Select Point")
                 self.select_point_btn.setEnabled(True)
-                self.status_bar.showMessage(f"Nokta {index + 1} eklendi")
+                self.status_bar.showMessage(f"Point {index + 1} added")
                 self.display_frame()
     
     def clear_last_point(self):
@@ -333,7 +453,7 @@ class MainWindow(QMainWindow):
                 self.results_text.clear()
             
             self.display_frame()
-            self.status_bar.showMessage("Son nokta silindi")
+            self.status_bar.showMessage("Last point removed")
     
     def clear_all_points(self):
         if self.calculator:
@@ -345,11 +465,11 @@ class MainWindow(QMainWindow):
         self.calculate_btn.setEnabled(False)
         self.export_btn.setEnabled(False)
         self.display_frame()
-        self.status_bar.showMessage("Tüm noktalar temizlendi")
+        self.status_bar.showMessage("All points cleared")
     
     def calculate_speeds(self):
         if not self.calculator or len(self.calculator.get_points()) < 2:
-            QMessageBox.warning(self, "Uyarı", "En az 2 nokta seçmelisiniz!")
+            QMessageBox.warning(self, "Warning", "You must select at least 2 points!")
             return
         
         pixels = self.pixel_value
@@ -359,7 +479,7 @@ class MainWindow(QMainWindow):
         summary = self.calculator.get_summary_text()
         self.results_text.setPlainText(summary)
         self.export_btn.setEnabled(True)
-        self.status_bar.showMessage("Hesaplamalar tamamlandı")
+        self.status_bar.showMessage("Calculations completed")
     
     def export_results(self):
         if not self.calculator or len(self.calculator.get_points()) < 2:
@@ -367,9 +487,9 @@ class MainWindow(QMainWindow):
         
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Sonuçları Kaydet",
-            "sonuclar.csv",
-            "CSV Dosyaları (*.csv)"
+            "Save Results",
+            "results.csv",
+            "CSV Files (*.csv)"
         )
         
         if file_path:
@@ -380,12 +500,12 @@ class MainWindow(QMainWindow):
                 
                 QMessageBox.information(
                     self,
-                    "Başarılı",
-                    f"Sonuçlar başarıyla kaydedildi:\n{file_path}"
+                    "Success",
+                    f"Results successfully saved:\n{file_path}"
                 )
-                self.status_bar.showMessage("Sonuçlar CSV olarak kaydedildi")
+                self.status_bar.showMessage("Results saved as CSV")
             except Exception as e:
-                QMessageBox.critical(self, "Hata", f"Kayıt hatası: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Save error: {str(e)}")
     
     def showEvent(self, event):
         super().showEvent(event)
@@ -445,6 +565,65 @@ class MainWindow(QMainWindow):
             self.frame_slider.setValue(new_value)
         else:
             super().keyPressEvent(event)
+    
+    def zoom_in(self):
+        if not self.video_loaded:
+            return
+        self.zoom_level = min(self.zoom_level * 1.5, 10.0)
+        self.zoom_label.setText(f"Zoom: %{int(self.zoom_level * 100)}")
+        if self.zoom_level > 1.0:
+            self.video_label.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.display_frame()
+        self.status_bar.showMessage(f"Zoom: %{int(self.zoom_level * 100)} - Drag to pan")
+    
+    def zoom_out(self):
+        if not self.video_loaded:
+            return
+        self.zoom_level = max(self.zoom_level / 1.5, 1.0)
+        if self.zoom_level == 1.0:
+            self.zoom_offset_x = 0
+            self.zoom_offset_y = 0
+            self.video_label.setCursor(Qt.CursorShape.ArrowCursor)
+        self.zoom_label.setText(f"Zoom: %{int(self.zoom_level * 100)}")
+        self.display_frame()
+        if self.zoom_level > 1.0:
+            self.status_bar.showMessage(f"Zoom: %{int(self.zoom_level * 100)} - Drag to pan")
+        else:
+            self.status_bar.showMessage(f"Zoom: %{int(self.zoom_level * 100)}")
+    
+    def zoom_reset(self):
+        self.zoom_level = 1.0
+        self.zoom_offset_x = 0
+        self.zoom_offset_y = 0
+        self.zoom_label.setText(f"Zoom: %{int(self.zoom_level * 100)}")
+        self.video_label.setCursor(Qt.CursorShape.ArrowCursor)
+        if self.video_loaded:
+            self.display_frame()
+            self.status_bar.showMessage("Zoom reset")
+    
+    def wheelEvent(self, event):
+        if self.video_loaded and event.angleDelta().y() != 0:
+            if event.angleDelta().y() > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+    
+    def show_about(self):
+        about_text = """
+<h2>Erytroscope</h2>
+<p><b>Version 1.0</b></p>
+<br>
+<p>A professional video frame analysis application for precise point tracking and speed calculations.</p>
+<br>
+<p><b>Developed by:</b> Ibrahim Ünal</p>
+<p><b>Under the guidance of:</b> Prof. Dr. Ugur Aksu</p>
+<br>
+<p>© 2026 All rights reserved</p>
+        """
+        QMessageBox.about(self, "About Erytroscope", about_text)
     
     def closeEvent(self, event):
         self.video_processor.release()
