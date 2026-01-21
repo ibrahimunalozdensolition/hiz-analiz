@@ -619,6 +619,7 @@ class MainWindow(QMainWindow):
 <p>A professional video frame analysis application for precise point tracking and speed calculations.</p>
 <br>
 <p><b>Developed by:</b> Ibrahim Ünal</p>
+<p><b>Email:</b> ibrahimunalofficial@gmail.com</p>
 <p><b>Under the guidance of:</b> Prof. Dr. Ugur Aksu</p>
 <br>
 <p>© 2026 All rights reserved</p>
