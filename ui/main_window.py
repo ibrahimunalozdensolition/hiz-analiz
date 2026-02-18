@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QLabel, QSlider, QFileDialog, QGroupBox,
                              QStatusBar, QMessageBox, QTextEdit,
-                             QListWidget, QListWidgetItem, QSizePolicy)
+                             QListWidget, QListWidgetItem, QSizePolicy, QScrollArea)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QImage, QPixmap, QPainter, QPen, QColor, QScreen
 import cv2
@@ -28,6 +28,8 @@ class MainWindow(QMainWindow):
         self.panning = False
         self.pan_start_x = 0
         self.pan_start_y = 0
+        self.contrast = 1.0
+        self.point_size = 8
         
         self.setWindowTitle("Erytroscope")
         
@@ -114,7 +116,14 @@ class MainWindow(QMainWindow):
         
         main_layout.addLayout(left_layout, 75)
         
-        right_layout = QVBoxLayout()
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
         right_layout.setSpacing(15)
         right_layout.setContentsMargins(5, 5, 5, 5)
         
@@ -136,6 +145,60 @@ class MainWindow(QMainWindow):
         
         video_group.setLayout(video_group_layout)
         right_layout.addWidget(video_group)
+        
+        contrast_group = QGroupBox("Contrast Control")
+        contrast_group.setMinimumHeight(80)
+        contrast_group.setMaximumHeight(120)
+        contrast_group_layout = QVBoxLayout()
+        contrast_group_layout.setSpacing(10)
+        
+        contrast_label_layout = QHBoxLayout()
+        contrast_label_layout.addWidget(QLabel("Contrast:"))
+        self.contrast_value_label = QLabel("1.0")
+        self.contrast_value_label.setMinimumWidth(40)
+        self.contrast_value_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        contrast_label_layout.addWidget(self.contrast_value_label)
+        contrast_label_layout.addStretch()
+        contrast_group_layout.addLayout(contrast_label_layout)
+        
+        self.contrast_slider = QSlider(Qt.Orientation.Horizontal)
+        self.contrast_slider.setMinimum(0)
+        self.contrast_slider.setMaximum(300)
+        self.contrast_slider.setValue(100)
+        self.contrast_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.contrast_slider.setTickInterval(50)
+        self.contrast_slider.valueChanged.connect(self.contrast_changed)
+        contrast_group_layout.addWidget(self.contrast_slider)
+        
+        contrast_group.setLayout(contrast_group_layout)
+        right_layout.addWidget(contrast_group)
+        
+        point_size_group = QGroupBox("Point Size")
+        point_size_group.setMinimumHeight(80)
+        point_size_group.setMaximumHeight(120)
+        point_size_group_layout = QVBoxLayout()
+        point_size_group_layout.setSpacing(10)
+        
+        point_size_label_layout = QHBoxLayout()
+        point_size_label_layout.addWidget(QLabel("Size:"))
+        self.point_size_value_label = QLabel("8")
+        self.point_size_value_label.setMinimumWidth(40)
+        self.point_size_value_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        point_size_label_layout.addWidget(self.point_size_value_label)
+        point_size_label_layout.addStretch()
+        point_size_group_layout.addLayout(point_size_label_layout)
+        
+        self.point_size_slider = QSlider(Qt.Orientation.Horizontal)
+        self.point_size_slider.setMinimum(3)
+        self.point_size_slider.setMaximum(20)
+        self.point_size_slider.setValue(8)
+        self.point_size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.point_size_slider.setTickInterval(2)
+        self.point_size_slider.valueChanged.connect(self.point_size_changed)
+        point_size_group_layout.addWidget(self.point_size_slider)
+        
+        point_size_group.setLayout(point_size_group_layout)
+        right_layout.addWidget(point_size_group)
         
         self.pixel_value = 546
         self.um_value = 1000
@@ -198,7 +261,8 @@ class MainWindow(QMainWindow):
         self.about_btn.clicked.connect(self.show_about)
         right_layout.addWidget(self.about_btn)
         
-        main_layout.addLayout(right_layout, 25)
+        scroll_area.setWidget(right_widget)
+        main_layout.addWidget(scroll_area, 25)
         
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -237,6 +301,10 @@ class MainWindow(QMainWindow):
                     self.zoom_out_btn.setEnabled(True)
                     self.zoom_reset_btn.setEnabled(True)
                     
+                    self.selecting_point = False
+                    self.select_point_btn.setText("Select Point")
+                    self.select_point_btn.setStyleSheet("")
+                    
                     self.clear_all_points()
                     self.zoom_reset()
                     
@@ -256,10 +324,26 @@ class MainWindow(QMainWindow):
             self.display_frame()
             self.frame_label.setText(f"{value} / {self.video_processor.total_frames - 1}")
     
+    def contrast_changed(self, value):
+        self.contrast = value / 100.0
+        self.contrast_value_label.setText(f"{self.contrast:.1f}")
+        if self.video_loaded:
+            self.display_frame()
+    
+    def point_size_changed(self, value):
+        self.point_size = value
+        self.point_size_value_label.setText(f"{self.point_size}")
+        if self.video_loaded:
+            self.display_frame()
+    
     def display_frame(self):
         frame = self.video_processor.get_current_frame()
         if frame is not None:
             display_frame = frame.copy()
+            
+            if self.contrast != 1.0:
+                display_frame = cv2.convertScaleAbs(display_frame, alpha=self.contrast, beta=0)
+            
             display_frame = self.draw_points_on_frame(display_frame)
             
             if self.zoom_level > 1.0:
@@ -308,27 +392,35 @@ class MainWindow(QMainWindow):
         
         for i, point in enumerate(points):
             color = (0, 255, 0) if i == len(points) - 1 else (0, 150, 255)
-            cv2.circle(frame, (point.x, point.y), 8, color, -1)
-            cv2.circle(frame, (point.x, point.y), 10, (255, 255, 255), 2)
+            cv2.circle(frame, (point.x, point.y), self.point_size, color, -1)
+            cv2.circle(frame, (point.x, point.y), self.point_size + 2, (255, 255, 255), 2)
             
             label = f"{i+1}"
-            cv2.putText(frame, label, (point.x + 15, point.y - 15),
+            label_offset = self.point_size + 7
+            cv2.putText(frame, label, (point.x + label_offset, point.y - label_offset),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-            cv2.putText(frame, label, (point.x + 15, point.y - 15),
+            cv2.putText(frame, label, (point.x + label_offset, point.y - label_offset),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 1)
         
         for i in range(len(points) - 1):
             p1 = points[i]
             p2 = points[i + 1]
-            cv2.line(frame, (p1.x, p1.y), (p2.x, p2.y), (255, 200, 0), 2)
+            line_thickness = max(2, self.point_size // 4)
+            cv2.line(frame, (p1.x, p1.y), (p2.x, p2.y), (255, 200, 0), line_thickness)
         
         return frame
     
     def start_point_selection(self):
-        self.selecting_point = True
-        self.select_point_btn.setText("Click a point on the video...")
-        self.select_point_btn.setEnabled(False)
-        self.status_bar.showMessage("Select a point on the video")
+        self.selecting_point = not self.selecting_point
+        
+        if self.selecting_point:
+            self.select_point_btn.setText("Stop Selection")
+            self.select_point_btn.setStyleSheet("background-color: #d32f2f; color: white;")
+            self.status_bar.showMessage("Point selection mode active - Click on video to add points")
+        else:
+            self.select_point_btn.setText("Select Point")
+            self.select_point_btn.setStyleSheet("")
+            self.status_bar.showMessage("Point selection mode stopped")
     
     def video_label_mouse_press(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -430,10 +522,7 @@ class MainWindow(QMainWindow):
                 if len(self.calculator.get_points()) >= 2:
                     self.calculate_btn.setEnabled(True)
                 
-                self.selecting_point = False
-                self.select_point_btn.setText("Select Point")
-                self.select_point_btn.setEnabled(True)
-                self.status_bar.showMessage(f"Point {index + 1} added")
+                self.status_bar.showMessage(f"Point {index + 1} added - Click to add more or press 'Stop Selection'")
                 self.display_frame()
     
     def clear_last_point(self):
@@ -464,6 +553,12 @@ class MainWindow(QMainWindow):
         self.clear_all_btn.setEnabled(False)
         self.calculate_btn.setEnabled(False)
         self.export_btn.setEnabled(False)
+        
+        if self.selecting_point:
+            self.selecting_point = False
+            self.select_point_btn.setText("Select Point")
+            self.select_point_btn.setStyleSheet("")
+        
         self.display_frame()
         self.status_bar.showMessage("All points cleared")
     

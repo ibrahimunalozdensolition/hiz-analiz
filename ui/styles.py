@@ -178,6 +178,21 @@ class AppStyles:
             QScrollBar::handle:vertical:hover {{
                 background: {AppStyles.ACCENT_NAVY};
             }}
+            
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                border: none;
+                background: none;
+                height: 0px;
+            }}
+            
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+            
+            QScrollArea {{
+                border: none;
+                background-color: {AppStyles.BG_WHITE};
+            }}
         """
     
     @staticmethod
